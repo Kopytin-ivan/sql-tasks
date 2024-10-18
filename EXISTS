@@ -1,0 +1,63 @@
+--Схема БД
+  Рассматривается БД кораблей, участвовавших во второй мировой войне. Имеются следующие отношения:
+Classes (class, type, country, numGuns, bore, displacement)
+Ships (name, class, launched)
+Battles (name, date)
+Outcomes (ship, battle, result)
+Корабли в «классах» построены по одному и тому же проекту, и классу присваивается либо имя первого корабля, построенного по данному проекту, либо названию класса дается имя проекта, которое не совпадает ни с одним из кораблей в БД. Корабль, давший название классу, называется головным.
+Отношение Classes содержит имя класса, тип (bb для боевого (линейного) корабля или bc для боевого крейсера), страну, в которой построен корабль, число главных орудий, калибр орудий (диаметр ствола орудия в дюймах) и водоизмещение ( вес в тоннах). В отношении Ships записаны название корабля, имя его класса и год спуска на воду. В отношение Battles включены название и дата битвы, в которой участвовали корабли, а в отношении Outcomes – результат участия данного корабля в битве (потоплен-sunk, поврежден - damaged или невредим - OK).
+Замечания. 1) В отношение Outcomes могут входить корабли, отсутствующие в отношении Ships. 2) Потопленный корабль в последующих битвах участия не принимает.
+
+--Найти корабли, которые были спущены на воду после 1940 года.
+  
+SELECT DISTINCT s.name FROM Ships s
+WHERE launched > 1940 AND
+EXISTS(
+  SELECT 1 FROM Outcomes o
+  WHERE o.ship = s.name
+);
+
+--Найти битвы, в которых участвовали корабли из конкретной страны.
+
+SELECT b.name FROM Battles b
+WHERE EXISTS(
+  SELECT 1 FROM Outcomes o
+  JOIN Ships s ON o.ship = s.name
+  JOIN Classes c ON s.class = c.class
+  WHERE c.country = 'USA'
+  AND o.battle = b.name
+);
+
+--Найти классы кораблей, которые участвовали в битве.
+SELECT c.class FROM Classes c
+WHERE EXISTS(
+  SELECT 1 FROM Ships s
+  JOIN Outcomes o ON o.ship = s.name
+  WHERE s.class = c.class
+);
+
+--Найти корабли, которые участвовали в одной и той же битве более одного раза:
+
+SELECT o.ship FROM Outcomes o
+WHERE NOT EXISTS
+(SELECT 1 FROM Outcomes o1
+WHERE o1.ship = o.ship AND o.result <> 'OK'
+
+)
+
+--Найти классы кораблей, для которых ни один корабль не был потоплен:
+
+SELECT s.class
+FROM Ships s
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM Ships s2
+    JOIN Outcomes o ON s2.name = o.ship
+    WHERE s2.class = s.class AND o.result = 'sunk'
+)
+GROUP BY s.class
+
+--
+
+
+  
